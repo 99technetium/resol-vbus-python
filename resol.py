@@ -25,6 +25,8 @@ try:
 except:
     sys.exit("Could not load Message Specification")
 
+sock = None
+result = None
 
 # Logs in onto the DeltaSol BS Plus over LAN. Also starts (and maintains) the
 # actual stream of data.
@@ -251,7 +253,9 @@ def gb(data, begin, end):  # GetBytes
     return s
 
 
-if __name__ == '__main__':
+def query_data():
+    global sock, result
+
     if config.connection == "serial":
         sock = serial.Serial(config.port, baudrate=config.baudrate, timeout=0)
     elif config.connection == "lan":
@@ -266,12 +270,7 @@ if __name__ == '__main__':
     result = dict()
     load_data()
 
-    print(json.dumps(result).replace("\\u00b0C","°C"))
 
-    if config.connection == "lan":
-        try:
-            sock.shutdown(0)
-        except:
-            pass
-    sock.close()
-    sock = None
+if __name__ == '__main__':
+    query_data()
+    print(json.dumps(result).replace("\\u00b0C","°C"))
