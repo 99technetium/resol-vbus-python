@@ -224,6 +224,10 @@ def get_compare_length(mask):
 def get_source_name(msg):
     src = format_byte(msg[3]) + format_byte(msg[2])[2:]
     for device in spec.spec['device']:
+        if 'mask' not in device:
+            raise RuntimeError(f"No Mask defined in specs file for device \"{device['name']}\"({device['address']})! "
+                               f"Add the Mask to the device definition (0xFFFF or 0xFFF0 for most devices).")
+
         if src[:get_compare_length(device['mask'])].lower() == device['address'][:get_compare_length(device['mask'])].lower():
             return device['name'] if get_compare_length(device['mask']) == 7 else str(device['name']).replace('#',device['address'][get_compare_length(device['mask'])-1:],1)
     return ""
