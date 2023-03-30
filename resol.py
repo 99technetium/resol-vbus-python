@@ -22,8 +22,8 @@ if config.connection == "serial":
 # Load Message specification
 try:
     import spec
-except:
-    sys.exit("Could not load Message Specification")
+except Exception as e:
+    sys.exit("Could not load Message Specification" + e)
 
 sock = None
 result = None
@@ -155,12 +155,17 @@ def parse_payload(msg):
     payload = get_payload(msg)
 
     if config.debug:
-         print('ParsePacket Payload '+str(len(payload)))
+        print('ParsePacket Payload '+str(len(payload)))
+        parsed = False
 
     for packet in spec.spec['packet']:
         if packet['source'].lower() == get_source(msg).lower() and \
                 packet['destination'].lower() == get_destination(msg).lower() and \
                 packet['command'].lower() == get_command(msg).lower():
+
+            if config.debug:
+                parsed = True
+
             result[get_source_name(msg)] = {}
             for field in packet['field']:
                 result[get_source_name(msg)][field['name']] = \
@@ -173,6 +178,10 @@ def parse_payload(msg):
                         and 'unit' in field
                         and isinstance(field['unit'], str)
                      else '')
+
+    if config.debug and not parsed:
+        print('Message could not be found in specs')
+
 
 def format_message_pv1(msg):
     parsed = "PARSED: \n"
