@@ -44,6 +44,54 @@ def login():
 
     return dat.startswith("+OK".encode('ascii'))
 
+# Tries to determinate the number of different packets by the header (address, destination, command).
+def determine_packet_count():
+    if config.connection == "lan":
+        #Request Data
+        send("DATA\n".encode('ascii'))
+
+        dat = recv()
+
+        #Check if device is ready to send Data
+        if not dat.startswith("+OK".encode('ascii')):
+            return
+
+    last = None
+    count = 0
+    tries = 0
+    while tries < 5:
+        buf = readstream()
+        msgs = splitmsg(buf)
+        current = decode_packet_header(msgs)
+        print("Packet Header:" + str(current))
+        if not last:
+            last = current
+            count += 1
+        elif last == current:
+            tries += 1
+        else:
+            count += 1
+            tries = 0
+            last = current
+
+        print(f"Found {count} Packet(s) - {tries} Tries")
+
+
+# Returns the structured header of a message (Source -> Destination -> Command)
+def decode_packet_header(msgs):
+    header = {}
+    for msg in msgs:
+        source = get_source(msg)
+        dest = get_destination(msg)
+        cmd = get_command(msg)
+        if source not in header:
+            header[source] = {}
+        if dest not in header[source]:
+            header[source][dest] = []
+        if cmd not in header[source][dest]:
+            header[source][dest].append(get_command(msg))
+
+    return header
 
 def load_data():
     if config.connection == "lan":
@@ -56,12 +104,29 @@ def load_data():
         if not dat.startswith("+OK".encode('ascii')):
             return
 
+    header_last = None
+    recv_count = 0
     while len(result) < config.expected_packets:
         buf = readstream()
 
         msgs = splitmsg(buf)
         if config.debug:
             print(str(len(msgs))+" Messages, "+str(len(result))+" Resultlen")
+
+        # Threshold to prevent infinite looping on too high expected packets
+        # or misbehaving controllers
+        if config.repetitive_packets and config.repetitive_packets > 0:
+            header_current = decode_packet_header(msgs)
+            if header_last and header_last == header_current:
+                if config.debug:
+                    print(f"Repetitive packet detected: " + str(header_current))
+                recv_count += 1
+                if recv_count >= config.repetitive_packets:
+                    break
+            else:
+                recv_count = 0
+                header_last = header_current
+
         for msg in msgs:
             if config.debug: print(get_protocolversion(msg))
             if "PV1" == get_protocolversion(msg):
