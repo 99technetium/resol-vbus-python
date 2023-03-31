@@ -283,6 +283,8 @@ def query_data():
     result = dict()
     load_data()
 
+    return result
+
 
 if __name__ == '__main__':
     query_data()
